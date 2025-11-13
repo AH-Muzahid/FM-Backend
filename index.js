@@ -54,12 +54,22 @@ app.get('/', (req, res) => {
 });
 
 // Debug route
-app.get('/debug', (req, res) => {
+app.get('/debug', async (req, res) => {
+  try {
+    const db = await connectDB();
   res.json({
     mongoUri: process.env.MONGODB_URI ? 'Set' : 'Not Set',
     nodeEnv: process.env.NODE_ENV || 'Not Set',
-    dbStatus: cachedDb ? 'Connected' : 'Disconnected'
-  });
+    dbStatus: cachedDb ? 'Connected' : 'Disconnected',
+    ping: 'Successful'
+    });
+  } catch (error) {
+  res.status(500).json({
+      mongoUri: process.env.MONGODB_URI ? 'Set' : 'Not Set',
+      dbStatus: 'Connection Failed',
+      error: error.message 
+    });
+  }
 });
 
 // Transaction routes
