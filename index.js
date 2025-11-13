@@ -19,22 +19,27 @@ async function connectDB() {
     
     if (!client) {
       client = new MongoClient(uri, {
-        serverApi: {
-          version: ServerApiVersion.v1,
-          strict: true,
-          deprecationErrors: true,
-        },
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
         maxPoolSize: 1,
         serverSelectionTimeoutMS: 5000,
         socketTimeoutMS: 45000,
+        family: 4
       });
     }
     
-    if (!db) {
-      await client.connect();
-      db = client.db("financeDB");
-      console.log('Connected to MongoDB');
-    }
+    // Create new connection for each request in serverless
+    const tempClient = new MongoClient(uri, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      maxPoolSize: 1,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      family: 4
+    });
+    
+    await tempClient.connect();
+    return tempClient.db("financeDB");
     
     return db;
   } catch (error) {
