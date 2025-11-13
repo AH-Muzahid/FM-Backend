@@ -13,24 +13,34 @@ let db;
 
 async function connectDB() {
   try {
+    if (!uri) {
+      throw new Error('MongoDB URI not found in environment variables');
+    }
+    
     if (!client) {
-      if (!uri) {
-        throw new Error('MongoDB URI not found in environment variables');
-      }
       client = new MongoClient(uri, {
         serverApi: {
           version: ServerApiVersion.v1,
           strict: true,
           deprecationErrors: true,
-        }
+        },
+        maxPoolSize: 1,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
       });
+    }
+    
+    if (!db) {
       await client.connect();
       db = client.db("financeDB");
       console.log('Connected to MongoDB');
     }
+    
     return db;
   } catch (error) {
     console.error('MongoDB connection error:', error);
+    client = null;
+    db = null;
     throw error;
   }
 }
