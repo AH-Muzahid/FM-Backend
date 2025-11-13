@@ -14,7 +14,6 @@ let cachedClient = null;
 let cachedDb = null;
 
 async function connectDB() {
-  // If connection already exists, use it
   if (cachedDb) {
     return cachedDb;
   }
@@ -24,17 +23,13 @@ async function connectDB() {
       throw new Error('MongoDB URI not found in environment variables');
     }
     
-    // Connection with TLS options for Vercel
     const client = new MongoClient(uri, {
       serverApi: {
         version: ServerApiVersion.v1,
         strict: true,
         deprecationErrors: true,
-      },
-      tls: true,
-      tlsInsecure: false,
-      tlsAllowInvalidCertificates: false,
-      tlsAllowInvalidHostnames: false
+      }
+      
     });
 
     await client.connect();
