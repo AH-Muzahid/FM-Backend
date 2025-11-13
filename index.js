@@ -8,10 +8,17 @@ app.use(express.json());
 
 // MongoDB Connection
 const uri = process.env.MONGODB_URI;
-let client;
-let db;
+
+// Global variable for caching connection
+let cachedClient = null;
+let cachedDb = null;
 
 async function connectDB() {
+  // If connection already exists, use it
+  if (cachedDb) {
+    return cachedDb;
+  }
+
   try {
     if (!uri) {
       throw new Error('MongoDB URI not found in environment variables');
@@ -19,13 +26,23 @@ async function connectDB() {
     
     // Connection with TLS options for Vercel
     const client = new MongoClient(uri, {
+      serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
+      },
       tls: true,
       tlsInsecure: false,
       tlsAllowInvalidCertificates: false,
       tlsAllowInvalidHostnames: false
     });
+
     await client.connect();
-    return client.db("financeDB");
+    
+    cachedClient = client;
+    cachedDb = client.db("financeDB");
+    return cachedDb;
+
   } catch (error) {
     console.error('MongoDB connection error:', error);
     throw error;
@@ -40,7 +57,8 @@ app.get('/', (req, res) => {
 app.get('/debug', (req, res) => {
   res.json({
     mongoUri: process.env.MONGODB_URI ? 'Set' : 'Not Set',
-    nodeEnv: process.env.NODE_ENV || 'Not Set'
+    nodeEnv: process.env.NODE_ENV || 'Not Set',
+    dbStatus: cachedDb ? 'Connected' : 'Disconnected'
   });
 });
 
@@ -88,7 +106,14 @@ app.post('/add-transaction', async (req, res) => {
 app.get('/transaction/:id', async (req, res) => {
   try {
     const database = await connectDB();
-    const result = await database.collection('transactions').findOne({ _id: new ObjectId(req.params.id) });
+    const id = req.params.id;
+
+    // Basic validation to prevent crash
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid ID format' });
+    }
+
+    const result = await database.collection('transactions').findOne({ _id: new ObjectId(id) });
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -98,9 +123,18 @@ app.get('/transaction/:id', async (req, res) => {
 app.put('/transaction/update/:id', async (req, res) => {
   try {
     const database = await connectDB();
-    const updateDoc = { $set: { ...req.body, updatedAt: new Date() } };
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid ID format' });
+    }
+
+    // Remove _id from body to prevent immutable field error
+    const { _id, ...updateFields } = req.body;
+    const updateDoc = { $set: { ...updateFields, updatedAt: new Date() } };
+    
     const result = await database.collection('transactions').updateOne(
-      { _id: new ObjectId(req.params.id) },
+      { _id: new ObjectId(id) },
       updateDoc
     );
     res.json(result);
@@ -112,7 +146,13 @@ app.put('/transaction/update/:id', async (req, res) => {
 app.delete('/transaction/:id', async (req, res) => {
   try {
     const database = await connectDB();
-    const result = await database.collection('transactions').deleteOne({ _id: new ObjectId(req.params.id) });
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid ID format' });
+    }
+
+    const result = await database.collection('transactions').deleteOne({ _id: new ObjectId(id) });
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
