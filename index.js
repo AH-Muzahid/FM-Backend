@@ -17,8 +17,13 @@ async function connectDB() {
       throw new Error('MongoDB URI not found in environment variables');
     }
     
-    // Simple connection for serverless
-    const client = new MongoClient(uri);
+    // Connection with TLS options for Vercel
+    const client = new MongoClient(uri, {
+      tls: true,
+      tlsInsecure: false,
+      tlsAllowInvalidCertificates: false,
+      tlsAllowInvalidHostnames: false
+    });
     await client.connect();
     return client.db("financeDB");
   } catch (error) {
