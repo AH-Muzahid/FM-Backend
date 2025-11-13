@@ -39,6 +39,14 @@ app.get('/', (req, res) => {
   res.send('Welcome to Finance Management API');
 });
 
+// Debug route
+app.get('/debug', (req, res) => {
+  res.json({
+    mongoUri: process.env.MONGODB_URI ? 'Set' : 'Not Set',
+    nodeEnv: process.env.NODE_ENV || 'Not Set'
+  });
+});
+
 // Transaction routes
 app.get('/my-transactions', async (req, res) => {
   try {
