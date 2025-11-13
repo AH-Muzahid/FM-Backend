@@ -17,35 +17,12 @@ async function connectDB() {
       throw new Error('MongoDB URI not found in environment variables');
     }
     
-    if (!client) {
-      client = new MongoClient(uri, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-        maxPoolSize: 1,
-        serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 45000,
-        family: 4
-      });
-    }
-    
-    // Create new connection for each request in serverless
-    const tempClient = new MongoClient(uri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      maxPoolSize: 1,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
-      family: 4
-    });
-    
-    await tempClient.connect();
-    return tempClient.db("financeDB");
-    
-    return db;
+    // Simple connection for serverless
+    const client = new MongoClient(uri);
+    await client.connect();
+    return client.db("financeDB");
   } catch (error) {
     console.error('MongoDB connection error:', error);
-    client = null;
-    db = null;
     throw error;
   }
 }
