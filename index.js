@@ -10,7 +10,7 @@ app.use(express.json());
 
 
 app.get('/', (req, res) => {
-  res.send('Welcome to Simple CRUD Server');
+  res.send('Welcome to Finance Management API');
 });
 
 
@@ -28,7 +28,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
+    await client.connect();
 
     const financeDB = client.db("financeDB");
     const usersCollection = financeDB.collection("users");
@@ -69,8 +69,14 @@ async function run() {
     // GET /my-transactions
     app.get('/my-transactions', async (req, res) => {
       const email = req.query.email;
+      const sortBy = req.query.sortBy || 'date';
+      const sortOrder = req.query.sortOrder || 'desc';
+      
+      const sortOptions = {};
+      sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
+      
       const query = { email: email };
-      const result = await transactionsCollection.find(query).toArray();
+      const result = await transactionsCollection.find(query).sort(sortOptions).toArray();
       res.send(result);
     });
 
@@ -126,6 +132,4 @@ run().catch(console.dir);
 
 
 
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
-});
+module.exports = app;
