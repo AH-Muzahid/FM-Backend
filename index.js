@@ -12,18 +12,27 @@ let client;
 let db;
 
 async function connectDB() {
-  if (!client) {
-    client = new MongoClient(uri, {
-      serverApi: {
-        version: ServerApiVersion.v1,
-        strict: true,
-        deprecationErrors: true,
+  try {
+    if (!client) {
+      if (!uri) {
+        throw new Error('MongoDB URI not found in environment variables');
       }
-    });
-    await client.connect();
-    db = client.db("financeDB");
+      client = new MongoClient(uri, {
+        serverApi: {
+          version: ServerApiVersion.v1,
+          strict: true,
+          deprecationErrors: true,
+        }
+      });
+      await client.connect();
+      db = client.db("financeDB");
+      console.log('Connected to MongoDB');
+    }
+    return db;
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    throw error;
   }
-  return db;
 }
 
 app.get('/', (req, res) => {
@@ -34,7 +43,15 @@ app.get('/', (req, res) => {
 app.get('/my-transactions', async (req, res) => {
   try {
     const database = await connectDB();
+    if (!database) {
+      throw new Error('Database connection failed');
+    }
+    
     const email = req.query.email;
+    if (!email) {
+      return res.status(400).json({ error: 'Email parameter is required' });
+    }
+    
     const sortBy = req.query.sortBy || 'date';
     const sortOrder = req.query.sortOrder || 'desc';
     
@@ -47,6 +64,7 @@ app.get('/my-transactions', async (req, res) => {
       .toArray();
     res.json(result);
   } catch (error) {
+    console.error('Error in /my-transactions:', error);
     res.status(500).json({ error: error.message });
   }
 });
