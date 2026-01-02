@@ -1,4 +1,5 @@
 const express = require('express');
+require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const cors = require('cors');
 
@@ -22,18 +23,18 @@ async function connectDB() {
     if (!uri) {
       throw new Error('MongoDB URI not found in environment variables');
     }
-    
+
     const client = new MongoClient(uri, {
       serverApi: {
         version: ServerApiVersion.v1,
         strict: true,
         deprecationErrors: true,
       }
-      
+
     });
 
     await client.connect();
-    
+
     cachedClient = client;
     cachedDb = client.db("financeDB");
     return cachedDb;
@@ -52,17 +53,17 @@ app.get('/', (req, res) => {
 app.get('/debug', async (req, res) => {
   try {
     const db = await connectDB();
-  res.json({
-    mongoUri: process.env.MONGODB_URI ? 'Set' : 'Not Set',
-    nodeEnv: process.env.NODE_ENV || 'Not Set',
-    dbStatus: cachedDb ? 'Connected' : 'Disconnected',
-    ping: 'Successful'
+    res.json({
+      mongoUri: process.env.MONGODB_URI ? 'Set' : 'Not Set',
+      nodeEnv: process.env.NODE_ENV || 'Not Set',
+      dbStatus: cachedDb ? 'Connected' : 'Disconnected',
+      ping: 'Successful'
     });
   } catch (error) {
-  res.status(500).json({
+    res.status(500).json({
       mongoUri: process.env.MONGODB_URI ? 'Set' : 'Not Set',
       dbStatus: 'Connection Failed',
-      error: error.message 
+      error: error.message
     });
   }
 });
@@ -74,23 +75,38 @@ app.get('/my-transactions', async (req, res) => {
     if (!database) {
       throw new Error('Database connection failed');
     }
-    
+
     const email = req.query.email;
     if (!email) {
       return res.status(400).json({ error: 'Email parameter is required' });
     }
-    
+
     const sortBy = req.query.sortBy || 'date';
     const sortOrder = req.query.sortOrder || 'desc';
-    
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
     const sortOptions = {};
     sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
-    
-    const result = await database.collection('transactions')
-      .find({ email })
+
+    const collection = database.collection('transactions');
+    const query = { email };
+
+    const totalTransactions = await collection.countDocuments(query);
+    const transactions = await collection
+      .find(query)
       .sort(sortOptions)
+      .skip(skip)
+      .limit(limit)
       .toArray();
-    res.json(result);
+
+    res.json({
+      transactions,
+      totalPages: Math.ceil(totalTransactions / limit),
+      currentPage: page,
+      totalTransactions
+    });
   } catch (error) {
     console.error('Error in /my-transactions:', error);
     res.status(500).json({ error: error.message });
@@ -137,7 +153,7 @@ app.put('/transaction/update/:id', async (req, res) => {
     // Remove _id from body to prevent immutable field error
     const { _id, ...updateFields } = req.body;
     const updateDoc = { $set: { ...updateFields, updatedAt: new Date() } };
-    
+
     const result = await database.collection('transactions').updateOne(
       { _id: new ObjectId(id) },
       updateDoc
@@ -175,3 +191,10 @@ app.get('/api/categories', async (req, res) => {
 });
 
 module.exports = app;
+
+if (require.main === module) {
+  const port = process.env.PORT || 3000;
+  app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+  });
+}
