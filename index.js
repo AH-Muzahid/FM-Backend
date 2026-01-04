@@ -93,6 +93,22 @@ app.get('/my-transactions', async (req, res) => {
     const collection = database.collection('transactions');
     const query = { email };
 
+    // Apply Filters
+    if (req.query.type && req.query.type !== 'all') {
+      query.type = req.query.type;
+    }
+
+    if (req.query.date) {
+      query.date = req.query.date;
+    }
+
+    if (req.query.search) {
+      query.$or = [
+        { description: { $regex: req.query.search, $options: 'i' } },
+        { category: { $regex: req.query.search, $options: 'i' } }
+      ];
+    }
+
     const totalTransactions = await collection.countDocuments(query);
     const transactions = await collection
       .find(query)
